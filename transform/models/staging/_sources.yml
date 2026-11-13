@@ -1,0 +1,22 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: Daily drops of the Criteo attribution feed, loaded by mdp.ingest (local) or Snowpipe (cloud).
+    loaded_at_field: _loaded_at
+    freshness:
+      warn_after: {count: 26, period: hour}
+      error_after: {count: 48, period: hour}
+    tables:
+      - name: impressions
+        description: One row per ad impression. Costs are transformed by Criteo, not real prices.
+        columns:
+          - name: timestamp
+            tests: [not_null]
+          - name: uid
+            tests: [not_null]
+          - name: campaign
+            tests: [not_null]
+          - name: day
+            tests: [not_null]

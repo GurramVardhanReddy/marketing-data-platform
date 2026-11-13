@@ -1,0 +1,18 @@
+version: 2
+models:
+  - name: stg_impressions
+    description: Typed impressions with -1 sentinels replaced by NULL.
+    columns:
+      - name: impression_id
+        description: day_index * 10,000,000 + row number in the day's drop (stable across reloads).
+        tests: [unique, not_null]
+      - name: is_click
+        tests:
+          - accepted_values:
+              arguments: {values: [0, 1]}
+      - name: is_attributed
+        tests:
+          - accepted_values:
+              arguments: {values: [0, 1]}
+      - name: campaign_id
+        tests: [not_null]

@@ -1,0 +1,18 @@
+marketing_platform:
+  target: "{{ env_var('MDP_TARGET', 'local') }}"
+  outputs:
+    local:
+      type: duckdb
+      path: "{{ env_var('MDP_WAREHOUSE', '../warehouse.duckdb') }}"
+      threads: 4
+    snowflake:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT', '') }}"
+      user: "{{ env_var('SNOWFLAKE_USER', '') }}"
+      authenticator: snowflake_jwt
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH', '') }}"
+      role: TRANSFORMER
+      warehouse: TRANSFORM_WH
+      database: MARKETING
+      schema: ANALYTICS
+      threads: 4
