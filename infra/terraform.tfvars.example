@@ -1,0 +1,3 @@
+bucket_name      = "your-unique-marketing-drops-bucket"
+transformer_user = "DBT_SVC"
+alert_email      = ""
