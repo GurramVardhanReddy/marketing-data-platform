@@ -1,0 +1,16 @@
+data/
+*.duckdb
+*.duckdb.wal
+transform/target/
+transform/logs/
+transform/dbt_packages/
+infra/.terraform/
+infra/build/
+infra/*.tfstate*
+infra/terraform.tfvars
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.p8
+.env
