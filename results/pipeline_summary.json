@@ -1,0 +1,16 @@
+{
+  "raw_rows": 16468027,
+  "days_loaded": 31,
+  "fct_impressions": 16468027,
+  "fct_conversions": 435810,
+  "fct_campaign_daily": 31741,
+  "dim_campaign": 675,
+  "credited_conversions": 236331,
+  "conversions_spanning_campaigns_or_users": 2910,
+  "snapshot_versions": 1057,
+  "campaigns_that_changed_tier": 204,
+  "share_of_spend_on_campaigns_with_no_credited_conversion": 0.0,
+  "campaigns_with_no_credited_conversion": 0,
+  "monitor_alerts_on_clean_data": 0,
+  "share_of_spend_in_top_10_campaigns": 0.2575
+}

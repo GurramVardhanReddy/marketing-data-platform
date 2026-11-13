@@ -1,0 +1,58 @@
+{
+  "conversions_used": 432900,
+  "excluded_multi_campaign_or_user": 2910,
+  "train_conversions": 274709,
+  "test_conversions": 158191,
+  "test_from_conversion_day": 25,
+  "credited_share_train": 0.6082,
+  "credited_share_test": 0.4232,
+  "rule": {
+    "threshold_seconds": 14558.2,
+    "threshold_hours": 4.04,
+    "accuracy": 0.7193,
+    "campaign": {
+      "campaigns": 355,
+      "median_abs_pct_error": 0.5833,
+      "total_pred": 31324.0,
+      "total_actual": 63900
+    },
+    "auc": 0.7289
+  },
+  "logistic": {
+    "auc": 0.733,
+    "log_loss": 0.5872,
+    "brier": 0.1992,
+    "accuracy": 0.7191,
+    "campaign": {
+      "campaigns": 355,
+      "median_abs_pct_error": 0.2882,
+      "total_pred": 52242.9,
+      "total_actual": 63900
+    }
+  },
+  "gradient_boosting": {
+    "auc": 0.801,
+    "log_loss": 0.5483,
+    "brier": 0.1806,
+    "accuracy": 0.7464,
+    "campaign": {
+      "campaigns": 355,
+      "median_abs_pct_error": 0.2454,
+      "total_pred": 51472.1,
+      "total_actual": 63900
+    }
+  },
+  "base_rate": {
+    "auc": 0.5,
+    "log_loss": 0.7509,
+    "brier": 0.2783,
+    "accuracy": 0.4232
+  },
+  "auc_gain_gb_vs_rule": {
+    "mean": 0.0721,
+    "ci95": [
+      0.0702,
+      0.074
+    ]
+  }
+}
