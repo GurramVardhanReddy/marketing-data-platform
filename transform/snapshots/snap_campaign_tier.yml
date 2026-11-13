@@ -1,0 +1,8 @@
+snapshots:
+  - name: snap_campaign_tier
+    relation: ref('int_campaign_tier')
+    description: SCD type 2 history of each campaign's spend tier, one version per change.
+    config:
+      unique_key: campaign_id
+      strategy: check
+      check_cols: [spend_tier]

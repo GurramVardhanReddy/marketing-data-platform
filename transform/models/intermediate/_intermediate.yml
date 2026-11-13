@@ -1,0 +1,16 @@
+version: 2
+models:
+  - name: int_conversion_journeys
+    description: One row per conversion, summarising the impressions before it.
+    columns:
+      - name: conversion_id
+        tests: [unique, not_null]
+  - name: int_campaign_tier
+    description: Spend tier per campaign on the data loaded so far (source of the tier snapshot).
+    columns:
+      - name: campaign_id
+        tests: [unique, not_null]
+      - name: spend_tier
+        tests:
+          - accepted_values:
+              arguments: {values: [high_spend, mid_spend, low_spend]}

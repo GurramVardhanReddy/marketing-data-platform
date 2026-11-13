@@ -1,0 +1,42 @@
+version: 2
+models:
+  - name: dim_date
+    columns:
+      - name: day_index
+        tests: [unique, not_null]
+  - name: dim_campaign
+    columns:
+      - name: campaign_id
+        tests: [unique, not_null]
+  - name: fct_impressions
+    description: Fact table, one row per impression.
+    columns:
+      - name: impression_id
+        tests: [unique, not_null]
+      - name: campaign_id
+        tests:
+          - relationships:
+              arguments: {to: ref('dim_campaign'), field: campaign_id}
+      - name: day_index
+        tests:
+          - relationships:
+              arguments: {to: ref('dim_date'), field: day_index}
+  - name: fct_conversions
+    description: Fact table, one row per conversion.
+    columns:
+      - name: conversion_id
+        tests: [unique, not_null]
+      - name: campaign_id
+        tests:
+          - relationships:
+              arguments: {to: ref('dim_campaign'), field: campaign_id}
+      - name: conversion_day_index
+        tests:
+          - relationships:
+              arguments: {to: ref('dim_date'), field: day_index}
+      - name: spans_multiple_campaigns
+        description: Known feed issue. Monitored with a warn-level test rather than hidden.
+  - name: fct_campaign_daily
+    tests:
+      - dbt_utils_free_unique_combination:
+          arguments: {columns: [campaign_id, day_index]}
