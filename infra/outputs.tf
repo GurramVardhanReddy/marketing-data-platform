@@ -6,6 +6,11 @@ output "drops_topic_arn" {
   value = aws_sns_topic.drops.arn
 }
 
-output "snowpipe" {
-  value = "${snowflake_database.marketing.name}.RAW.${snowflake_pipe.impressions.name}"
+
+output "manifest_table" {
+  value = aws_dynamodb_table.drop_manifest.name
+}
+
+output "raw_bucket_arn" {
+  value = aws_s3_bucket.raw.arn
 }

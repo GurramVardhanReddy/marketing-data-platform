@@ -53,11 +53,11 @@ resource "aws_iam_role" "snowflake_access" {
 data "aws_iam_policy_document" "snowflake_read" {
   statement {
     actions   = ["s3:GetObject", "s3:GetObjectVersion"]
-    resources = ["${aws_s3_bucket.raw.arn}/raw/*"]
+    resources = ["${"arn:aws:s3:::${var.bucket_name}"}/raw/*"]
   }
   statement {
     actions   = ["s3:ListBucket", "s3:GetBucketLocation"]
-    resources = [aws_s3_bucket.raw.arn]
+    resources = ["arn:aws:s3:::${var.bucket_name}"]
   }
 }
 
@@ -126,14 +126,20 @@ resource "snowflake_table" "impressions" {
 }
 
 # Snowpipe: auto-ingests each drop as soon as S3 announces it on the SNS topic
+# Columns are listed explicitly: Terraform orders the table's columns alphabetically, so a
+# positional COPY would put CAT1..CAT9 in the wrong place (caught by the dbt tests).
 resource "snowflake_pipe" "impressions" {
+  # Created in the second apply, after the AWS stack lets Snowflake subscribe to the topic
+  count             = var.create_pipe ? 1 : 0
   database          = snowflake_database.marketing.name
   schema            = snowflake_schema.layer["RAW"].name
   name              = "IMPRESSIONS_PIPE"
   auto_ingest       = true
-  aws_sns_topic_arn = aws_sns_topic.drops.arn
+  aws_sns_topic_arn = var.drops_topic_arn
   copy_statement    = <<-SQL
-    COPY INTO ${snowflake_database.marketing.name}.RAW.IMPRESSIONS
+    COPY INTO ${snowflake_database.marketing.name}.RAW.IMPRESSIONS (
+      ${join(", ", concat(keys(local.raw_columns), [for i in range(1, 10) : "CAT${i}"], ["DAY", "_SOURCE_FILE", "_FILE_ROW_NUMBER", "_LOADED_AT"]))}
+    )
     FROM (
       SELECT
         ${join(",\n        ", [for c in keys(local.raw_columns) : "$1:${lower(c)}"])},
@@ -145,7 +151,7 @@ resource "snowflake_pipe" "impressions" {
       FROM @${snowflake_database.marketing.name}.RAW.${snowflake_stage_external_s3.drops.name}
     )
   SQL
-  depends_on        = [aws_iam_role_policy.snowflake_read, aws_sns_topic_policy.drops]
+  depends_on        = [aws_iam_role_policy.snowflake_read]
 }
 
 # --- Access: a TRANSFORMER role for dbt and Prefect, with least privilege ---
@@ -193,5 +199,36 @@ resource "snowflake_grant_privileges_to_account_role" "build_schemas" {
   privileges        = ["USAGE", "CREATE TABLE", "CREATE VIEW"]
   on_schema {
     schema_name = "\"${snowflake_database.marketing.name}\".\"${snowflake_schema.layer[each.key].name}\""
+  }
+}
+
+
+resource "snowflake_grant_privileges_to_account_role" "raw_usage" {
+  account_role_name = snowflake_account_role.transformer.name
+  privileges        = ["USAGE"]
+  on_schema {
+    schema_name = "\"${snowflake_database.marketing.name}\".\"${snowflake_schema.layer["RAW"].name}\""
+  }
+}
+
+# "All tables" grants only cover tables that exist when the grant runs, so the raw table gets its
+# own grant and future raw tables are covered too.
+resource "snowflake_grant_privileges_to_account_role" "raw_table_read" {
+  account_role_name = snowflake_account_role.transformer.name
+  privileges        = ["SELECT"]
+  on_schema_object {
+    object_type = "TABLE"
+    object_name = snowflake_table.impressions.fully_qualified_name
+  }
+}
+
+resource "snowflake_grant_privileges_to_account_role" "raw_future_read" {
+  account_role_name = snowflake_account_role.transformer.name
+  privileges        = ["SELECT"]
+  on_schema_object {
+    future {
+      object_type_plural = "TABLES"
+      in_schema          = "\"${snowflake_database.marketing.name}\".\"${snowflake_schema.layer["RAW"].name}\""
+    }
   }
 }

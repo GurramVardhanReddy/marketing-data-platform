@@ -14,7 +14,8 @@ variable "alert_email" {
   default     = ""
 }
 
-variable "transformer_user" {
-  description = "Snowflake user that dbt and Prefect run as"
+variable "snowflake_iam_user_arn" {
+  description = "Snowflake's AWS principal from the snowflake stack's output. Empty until that stack is applied."
   type        = string
+  default     = ""
 }

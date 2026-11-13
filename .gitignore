@@ -4,10 +4,11 @@
 transform/target/
 transform/logs/
 transform/dbt_packages/
-infra/.terraform/
+infra/**/.terraform/
 infra/build/
-infra/*.tfstate*
-infra/terraform.tfvars
+infra/**/*.tfstate*
+infra/**/tfplan
+infra/**/terraform.tfvars
 .venv/
 __pycache__/
 .pytest_cache/

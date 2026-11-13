@@ -44,6 +44,7 @@ resource "aws_sns_topic" "drops" {
 
 data "aws_iam_policy_document" "sns_from_s3" {
   statement {
+    sid       = "AllowBucketToPublish"
     actions   = ["SNS:Publish"]
     resources = [aws_sns_topic.drops.arn]
     principals {
@@ -57,12 +58,16 @@ data "aws_iam_policy_document" "sns_from_s3" {
     }
   }
   # Snowflake's account subscribes its own SQS queue to this topic for Snowpipe auto-ingest
-  statement {
-    actions   = ["SNS:Subscribe"]
-    resources = [aws_sns_topic.drops.arn]
-    principals {
-      type        = "AWS"
-      identifiers = [snowflake_storage_integration_aws.s3.describe_output[0].iam_user_arn]
+  dynamic "statement" {
+    for_each = var.snowflake_iam_user_arn == "" ? [] : [1]
+    content {
+      sid       = "AllowSnowflakeToSubscribe"
+      actions   = ["SNS:Subscribe"]
+      resources = [aws_sns_topic.drops.arn]
+      principals {
+        type        = "AWS"
+        identifiers = [var.snowflake_iam_user_arn]
+      }
     }
   }
 }

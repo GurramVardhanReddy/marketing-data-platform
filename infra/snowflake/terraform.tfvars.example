@@ -1,0 +1,4 @@
+bucket_name      = "your-unique-marketing-drops-bucket"
+drops_topic_arn  = "arn:aws:sns:eu-west-1:123456789012:your-unique-marketing-drops-bucket-drops"
+transformer_user = "DBT_SVC"
+create_pipe      = false

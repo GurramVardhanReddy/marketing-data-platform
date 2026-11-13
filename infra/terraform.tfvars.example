@@ -1,3 +1,4 @@
-bucket_name      = "your-unique-marketing-drops-bucket"
-transformer_user = "DBT_SVC"
-alert_email      = ""
+bucket_name           = "your-unique-marketing-drops-bucket"
+alert_email           = ""
+# Fill in after applying infra/snowflake (its iam_user_arn output), then apply this stack again
+snowflake_iam_user_arn = ""
