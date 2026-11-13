@@ -19,7 +19,7 @@ flowchart LR
     M -->|alerts| SL[Slack / monitor.alerts]
 ```
 
-Everything runs locally on DuckDB. The same dbt project also has a Snowflake target, and the Terraform describes the cloud deployment. See **Limits** for what has and hasn't been run.
+Everything runs locally on DuckDB, and the same pipeline is deployed to AWS (eu-west-1) and Snowflake with Terraform. On the cloud path, a drop uploaded to S3 is loaded into Snowflake by Snowpipe with no manual step, and the same dbt project builds and tests the marts there.
 
 ## Data
 
@@ -81,13 +81,28 @@ Out-of-time evaluation: trained on conversions from days 0 to 24 (274,709), test
 - **Gain over the rule:** gradient boosting improves AUC by **+0.072**, with a paired-bootstrap 95% CI of +0.070 to +0.074.
 - **The credited share drifts:** it falls from **60.8%** in training to **42.3%** in testing. Every model under-counts total credited conversions in the test period (gradient boosting predicts 51.5k against 63.9k actual), so totals would need recalibrating on recent data before being used for budgets.
 
-## Cloud deployment (Terraform, `infra/`)
+## Cloud deployment (Terraform)
 
-- **S3:** the landing bucket is private, versioned and encrypted. Drops move to infrequent access after 30 days, and old versions expire.
-- **Event-driven fan-out:** an S3 `ObjectCreated` event goes to an **SNS topic**. Snowflake subscribes its Snowpipe queue to that topic, and a **Lambda** writes each drop's key, size and arrival time to a **DynamoDB** manifest. The Lambda also alerts on empty drops.
-- **Snowflake:** an AWS storage integration plus an IAM role it assumes (external-ID condition); database, layer schemas, an XS warehouse with 60-second auto-suspend, an external stage, the raw table, and **Snowpipe auto-ingest**. The pipe's `COPY` records the file name and row number, the same lineage columns the local loader writes.
-- **Access:** a least-privilege `TRANSFORMER` role, granted to the dbt/Prefect user.
-- **Secrets:** credentials come from the environment (key-pair auth for Snowflake), never from the repo.
+There are two stacks, so the AWS side can stand alone:
+- **`infra/`** (AWS): the S3 landing bucket (private, versioned, encrypted, lifecycle to infrequent access after 30 days), an `ObjectCreated` event to an **SNS topic** that fans out to Snowpipe and to a **Lambda** that records every drop (key, size, arrival time) in a **DynamoDB** manifest and alerts on empty drops.
+- **`infra/snowflake/`** (Snowflake + the AWS role Snowflake assumes):
+  - **Loading:** an AWS storage integration, an IAM role with an external-ID condition that can read only `raw/`, an external stage, and **Snowpipe** with auto-ingest from the SNS topic.
+  - **Objects:** the `MARKETING` database, six layer schemas and an X-Small warehouse that suspends after 60 seconds.
+  - **Access:** a least-privilege `TRANSFORMER` role for dbt.
+- **Credentials:** AWS uses short-lived credentials from `aws login`; Snowflake uses key-pair auth. Nothing secret is in the repo.
+
+**Deployed and checked on 13 Nov 2026** (AWS eu-west-1, Snowflake on AWS eu-west-1):
+- **AWS stack:** 15 resources. A real drop uploaded to S3 went S3 → SNS → Lambda (285 ms) → DynamoDB.
+- **Snowflake stack:** 27 objects. Day 1 uploaded to S3 was in Snowflake about 35 seconds later with no manual step: 556,092 rows. Days 0 and 1 reconcile exactly with the local files on row counts and the sums of user, campaign, click, conversion, attribution, cost, category and time-since-click columns.
+- **dbt on Snowflake:** all 8 models built, 31 of 32 tests passed plus the warn-level check (21 multi-campaign conversions in those two days), the snapshot ran and source freshness passed.
+- **Least privilege:** checked with secondary roles switched off. TRANSFORMER reads RAW, builds in STAGING and MARTS, and is denied writes to RAW.
+- **Bugs the deployment caught, all fixed:**
+  - S3 sends object keys URL-encoded (`day%3D00`), so the Lambda now decodes them.
+  - Terraform orders table columns alphabetically, so the pipe's positional `COPY` put the category columns in the wrong place. **The dbt `accepted_values` test on `is_click` failed on 387,683 rows and exposed it.** The pipe now names its target columns.
+  - SNS needs a unique `Sid` on every policy statement.
+  - An "all tables" grant made before the table existed covered nothing, so the raw table now has its own grant plus a future-tables grant.
+
+Order of a fresh deployment: apply `infra/`, apply `infra/snowflake/` (with `create_pipe = false`), pass its `iam_user_arn` output to `infra/` as `snowflake_iam_user_arn` and apply again, then apply `infra/snowflake/` with `create_pipe = true`.
 
 ## Run it
 
@@ -111,7 +126,7 @@ The CI workflow (GitHub Actions) runs these jobs:
 
 ## Limits
 
-- **The cloud path is defined but not deployed.** The Terraform passes `terraform validate` (AWS provider 5.x, Snowflake provider 2.x, no deprecation warnings), but it has not been applied: that needs an AWS account and a Snowflake account. The dbt Snowflake target is configured but has not been run against Snowflake.
+- **Only 2 of the 31 days were loaded through the cloud path**, as a test of Snowpipe and dbt on Snowflake. The full 31-day backfill and the attribution results were run locally on DuckDB.
 - **Costs and timestamps are anonymised.** Costs are Criteo's transformed values, not real prices. Timestamps are relative, so days are numbered 0 to 60 and no calendar dates are invented.
 - **The tier snapshot is derived.** Spend tiers come from the data (tercile of spend to date), not from a real campaign-management system.
 - **Rerun timings will vary.** The 463-second backfill is one run on one machine.
