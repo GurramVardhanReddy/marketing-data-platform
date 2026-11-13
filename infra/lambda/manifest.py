@@ -3,6 +3,7 @@
 import json
 import os
 from datetime import UTC, datetime
+from urllib.parse import unquote_plus
 
 import boto3
 
@@ -15,7 +16,8 @@ def handler(event, context):
     for sns_record in event.get("Records", []):
         s3_event = json.loads(sns_record["Sns"]["Message"])
         for rec in s3_event.get("Records", []):
-            key = rec["s3"]["object"]["key"]
+            # S3 event keys are URL-encoded (day=00 arrives as day%3D00)
+            key = unquote_plus(rec["s3"]["object"]["key"])
             size = int(rec["s3"]["object"].get("size", 0))
             dynamodb.put_item(
                 TableName=os.environ["MANIFEST_TABLE"],
