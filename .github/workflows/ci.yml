@@ -1,0 +1,55 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: pytest -q
+
+  pipeline:
+    # Runs the real pipeline (Prefect flow, monitors, dbt build with all tests, snapshot)
+    # on the committed sample of the Criteo feed
+    runs-on: ubuntu-latest
+    env:
+      MDP_LANDING: ${{ github.workspace }}/data/landing
+      MDP_WAREHOUSE: ${{ github.workspace }}/warehouse.duckdb
+      DBT_SEND_ANONYMOUS_USAGE_STATS: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - run: python -m mdp prepare tests/data/criteo_sample.tsv.gz
+      - run: python -m mdp backfill
+      - run: dbt source freshness --project-dir transform --profiles-dir transform
+
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.4
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false -input=false
+      - run: terraform validate
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t marketing-data-platform .
